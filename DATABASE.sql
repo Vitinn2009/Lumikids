@@ -1,5 +1,5 @@
     CREATE TABLE responsavel (
-    id INT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     nome VARCHAR(100) NOT NULL,
     email VARCHAR(150) UNIQUE,
     senha VARCHAR(255),
@@ -8,7 +8,7 @@
 );
 
     CREATE TABLE vinculos (
-    id INT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     responsavel_id INT NOT NULL,
     crianca_id INT NOT NULL,
     FOREIGN KEY (responsavel_id) REFERENCES responsavel(id) ON DELETE CASCADE,
