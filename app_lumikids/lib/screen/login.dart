@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+
 import '../design_system/colors.dart';
 import '../widgets/buttons.dart';
 import '../widgets/custom_text_field.dart';
 import 'criar_conta.dart';
 import 'esqueci_senha.dart';
+import 'tela_principal.dart';
+import '../services/services_api.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -17,6 +19,9 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController();
   final _senha = TextEditingController();
+
+  final ApiService _apiService = ApiService();
+
   bool senhaVisivel = false;
 
   @override
@@ -41,10 +46,35 @@ class _LoginPageState extends State<LoginPage> {
     return null;
   }
 
-  void _fazerLogin() {
-    if (_formKey.currentState!.validate()) {
+  Future<void> _fazerLogin() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    try {
+      await _apiService.login(
+        email: _email.text.trim(),
+        senha: _senha.text,
+      );
+
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login realizado com sucesso')),
+        const SnackBar(
+          content: Text('Login realizado com sucesso'),
+        ),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const TelaPrincipal(),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao fazer login: $e'),
+        ),
       );
     }
   }
@@ -112,7 +142,6 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: 24),
-
                       CustomTextField(
                         controller: _email,
                         hint: 'Email',
@@ -121,7 +150,6 @@ class _LoginPageState extends State<LoginPage> {
                         keyboardType: TextInputType.emailAddress,
                       ),
                       const SizedBox(height: 16),
-
                       CustomTextField(
                         controller: _senha,
                         hint: 'Senha',
@@ -129,33 +157,30 @@ class _LoginPageState extends State<LoginPage> {
                         obscureText: !senhaVisivel,
                         validator: _validarSenha,
                         suffixIcon: IconButton(
-                          onPressed: () => setState(() => senhaVisivel = !senhaVisivel),
+                          onPressed: () =>
+                              setState(() => senhaVisivel = !senhaVisivel),
                           icon: Icon(
-                            senhaVisivel ? Icons.visibility : Icons.visibility_off,
+                            senhaVisivel
+                                ? Icons.visibility
+                                : Icons.visibility_off,
                           ),
                         ),
                       ),
                       const SizedBox(height: 28),
-
-                      // Botão LOGIN
                       PrimaryButton(
                         text: 'Entrar',
                         onTap: _fazerLogin,
                       ),
                       const SizedBox(height: 10),
-
-                      // Esqueci minha senha abaixo do botão
                       GestureDetector(
-                        
-                          onTap: () {
-                            Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                builder: (_) => const EsqueciSenhaPage(),
-                                ),
-                            );
-                            },
-                        
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const EsqueciSenhaPage(),
+                            ),
+                          );
+                        },
                         child: const Text(
                           'Esqueci minha senha',
                           style: TextStyle(
@@ -164,10 +189,7 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 20),
-
-                      // Linha de criar conta
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -189,7 +211,6 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
             ),
-
             Align(
               alignment: Alignment.bottomCenter,
               child: Container(

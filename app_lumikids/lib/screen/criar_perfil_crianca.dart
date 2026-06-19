@@ -4,6 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../design_system/colors.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/buttons.dart';
+import '../services/services_api.dart';
+import 'tela_principal.dart';
 
 class CriarPerfilCriancaPage extends StatefulWidget {
   const CriarPerfilCriancaPage({super.key});
@@ -15,9 +17,10 @@ class CriarPerfilCriancaPage extends StatefulWidget {
 
 class _CriarPerfilCriancaPageState extends State<CriarPerfilCriancaPage> {
   final _formKey = GlobalKey<FormState>();
-
   final _nome = TextEditingController();
   final _data = TextEditingController();
+
+  final ApiService _apiService = ApiService();
 
   @override
   void dispose() {
@@ -26,26 +29,35 @@ class _CriarPerfilCriancaPageState extends State<CriarPerfilCriancaPage> {
     super.dispose();
   }
 
-  void _selecionarData() async {
-    DateTime? data = await showDatePicker(
+  String? _validarNome(String? value) {
+    if (value == null || value.trim().isEmpty) return 'Informe o nome';
+    if (value.trim().length < 2) return 'Nome muito curto';
+    return null;
+  }
+
+  Future<void> _selecionarData() async {
+    final data = await showDatePicker(
       context: context,
+      initialDate: DateTime.now(),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
     );
-
     if (data != null) {
-      _data.text = "${data.day}/${data.month}/${data.year}";
+      setState(() {
+        _data.text =
+            '${data.day.toString().padLeft(2, '0')}/'
+            '${data.month.toString().padLeft(2, '0')}/'
+            '${data.year}';
+      });
     }
   }
 
-  void _criarPerfil() {
+  Future<void> _criarPerfil() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (_data.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Selecione a data de nascimento'),
-        ),
+        const SnackBar(content: Text('Selecione a data de nascimento')),
       );
       return;
     }
@@ -58,9 +70,7 @@ class _CriarPerfilCriancaPageState extends State<CriarPerfilCriancaPage> {
     );
 
     final hoje = DateTime.now();
-
     int idade = hoje.year - nascimento.year;
-
     if (hoje.month < nascimento.month ||
         (hoje.month == nascimento.month && hoje.day < nascimento.day)) {
       idade--;
@@ -77,11 +87,28 @@ class _CriarPerfilCriancaPageState extends State<CriarPerfilCriancaPage> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Perfil criado com sucesso'),
-      ),
-    );
+    final dataApi =
+        '${partes[2]}-${partes[1].padLeft(2, '0')}-${partes[0].padLeft(2, '0')}';
+
+    try {
+      await _apiService.criarPerfilCrianca(
+        nome: _nome.text.trim(),
+        dataNascimento: dataApi,
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Perfil criado com sucesso')),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const TelaPrincipal()),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao criar perfil: $e')),
+      );
+    }
   }
 
   @override
@@ -94,7 +121,6 @@ class _CriarPerfilCriancaPageState extends State<CriarPerfilCriancaPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // TÍTULO
                 Text(
                   'Proteja cada passo\ncom carinho.',
                   textAlign: TextAlign.center,
@@ -107,7 +133,6 @@ class _CriarPerfilCriancaPageState extends State<CriarPerfilCriancaPage> {
 
                 const SizedBox(height: 40),
 
-                // CARD
                 Container(
                   width: MediaQuery.of(context).size.width * 0.85,
                   padding: const EdgeInsets.all(24),
@@ -129,8 +154,9 @@ class _CriarPerfilCriancaPageState extends State<CriarPerfilCriancaPage> {
                       children: [
                         CustomTextField(
                           controller: _nome,
-                          hint: 'Nome',
+                          hint: 'Nome da criança',
                           icon: Icons.person,
+                          validator: _validarNome,
                         ),
 
                         const SizedBox(height: 16),

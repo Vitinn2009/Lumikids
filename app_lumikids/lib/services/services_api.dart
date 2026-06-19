@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 class ApiService {
   static const String _baseUrl = 'http://SEU_IP:8000';
 
+  // ─── LOGIN ────────────────────────────────────────────────────────────────
   Future<Map<String, dynamic>> login({
     required String email,
     required String senha,
@@ -24,12 +25,13 @@ class ApiService {
     }
   }
 
+  // ─── REGISTRAR CONTA ──────────────────────────────────────────────────────
   Future<Map<String, dynamic>> registrar({
     required String nome,
     required String email,
     required String senha,
     required String confirmarSenha,
-    required String dataNascimento,
+    required String dataNascimento, // formato: yyyy-MM-dd
   }) async {
     final resposta = await http.post(
       Uri.parse('$_baseUrl/auth/register'),
@@ -50,9 +52,10 @@ class ApiService {
     }
   }
 
+  // ─── CRIAR PERFIL CRIANÇA ─────────────────────────────────────────────────
   Future<Map<String, dynamic>> criarPerfilCrianca({
     required String nome,
-    required String dataNascimento,
+    required String dataNascimento, // formato: yyyy-MM-dd
   }) async {
     final resposta = await http.post(
       Uri.parse('$_baseUrl/criancas'),

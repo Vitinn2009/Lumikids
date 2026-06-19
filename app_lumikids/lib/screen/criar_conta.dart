@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../design_system/colors.dart';
 import '../widgets/custom_text_field.dart';
 import '../widgets/buttons.dart';
+import '../services/services_api.dart';
 
 import 'login.dart';
 import 'criar_perfil_crianca.dart';
@@ -24,6 +25,8 @@ class _CriarContaPageState extends State<CriarContaPage> {
   final _senha = TextEditingController();
   final _confirmar = TextEditingController();
 
+  final ApiService _apiService = ApiService();
+
   bool senhaVisivel = false;
   bool confirmarVisivel = false;
 
@@ -39,45 +42,25 @@ class _CriarContaPageState extends State<CriarContaPage> {
 
   bool _temMaisDe18Anos(DateTime dataNascimento) {
     final hoje = DateTime.now();
-
     int idade = hoje.year - dataNascimento.year;
-
     if (hoje.month < dataNascimento.month ||
         (hoje.month == dataNascimento.month && hoje.day < dataNascimento.day)) {
       idade--;
     }
-
     return idade >= 18;
   }
 
   String? _validarNome(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Informe seu nome';
-    }
-
-    if (value.trim().length < 3) {
-      return 'Nome muito curto';
-    }
-
-    if (RegExp(r'\d').hasMatch(value)) {
-      return 'Nome não pode conter números';
-    }
-
+    if (value == null || value.trim().isEmpty) return 'Informe seu nome';
+    if (value.trim().length < 3) return 'Nome muito curto';
+    if (RegExp(r'\d').hasMatch(value)) return 'Nome não pode conter números';
     return null;
   }
 
   String? _validarEmail(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Informe seu e-mail';
-    }
-
-    final email = value.trim();
+    if (value == null || value.trim().isEmpty) return 'Informe seu e-mail';
     final regex = RegExp(r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$');
-
-    if (!regex.hasMatch(email)) {
-      return 'E-mail inválido';
-    }
-
+    if (!regex.hasMatch(value.trim())) return 'E-mail inválido';
     return null;
   }
 
@@ -85,31 +68,18 @@ class _CriarContaPageState extends State<CriarContaPage> {
     if (value == null || value.trim().isEmpty) {
       return 'Informe sua data de nascimento';
     }
-
     try {
       final partes = value.split('/');
-      if (partes.length != 3) {
-        return 'Data inválida';
-      }
-
+      if (partes.length != 3) return 'Data inválida';
       final dia = int.parse(partes[0]);
       final mes = int.parse(partes[1]);
       final ano = int.parse(partes[2]);
-
       final data = DateTime(ano, mes, dia);
-
       if (data.day != dia || data.month != mes || data.year != ano) {
         return 'Data inválida';
       }
-
-      if (data.isAfter(DateTime.now())) {
-        return 'Data não pode ser no futuro';
-      }
-
-      if (!_temMaisDe18Anos(data)) {
-        return 'Você precisa ter 18 anos ou mais';
-      }
-
+      if (data.isAfter(DateTime.now())) return 'Data não pode ser no futuro';
+      if (!_temMaisDe18Anos(data)) return 'Você precisa ter 18 anos ou mais';
       return null;
     } catch (_) {
       return 'Data inválida';
@@ -117,50 +87,34 @@ class _CriarContaPageState extends State<CriarContaPage> {
   }
 
   String? _validarSenha(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Informe sua senha';
-    }
-
-    if (value.length < 8) {
-      return 'A senha deve ter no mínimo 8 caracteres';
-    }
-
+    if (value == null || value.isEmpty) return 'Informe sua senha';
+    if (value.length < 8) return 'A senha deve ter no mínimo 8 caracteres';
     return null;
   }
 
   String? _validarConfirmarSenha(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Confirme sua senha';
-    }
-
-    if (value != _senha.text) {
-      return 'As senhas não coincidem';
-    }
-
+    if (value == null || value.isEmpty) return 'Confirme sua senha';
+    if (value != _senha.text) return 'As senhas não coincidem';
     return null;
   }
 
   Future<void> _selecionarData() async {
     final hoje = DateTime.now();
-
     final data = await showDatePicker(
       context: context,
       initialDate: DateTime(hoje.year - 18, hoje.month, hoje.day),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
     );
-
     if (data != null) {
       setState(() {
         _data.text =
-            '${data.day.toString().padLeft(2, '0')}/'
-            '${data.month.toString().padLeft(2, '0')}/'
-            '${data.year}';
+            '${data.day.toString().padLeft(2, '0')}/${data.month.toString().padLeft(2, '0')}/${data.year}';
       });
     }
   }
 
-  void _criarConta() {
+  Future<void> _criarConta() async {
     final form = _formKey.currentState;
     if (form == null) return;
 
@@ -173,12 +127,35 @@ class _CriarContaPageState extends State<CriarContaPage> {
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const CriarPerfilCriancaPage(),
-      ),
-    );
+    try {
+      final partes = _data.text.split('/');
+      final dataApi =
+          '${partes[2]}-${partes[1].padLeft(2, '0')}-${partes[0].padLeft(2, '0')}';
+
+      await _apiService.registrar(
+        nome: _nome.text.trim(),
+        email: _email.text.trim(),
+        senha: _senha.text,
+        confirmarSenha: _confirmar.text,
+        dataNascimento: dataApi,
+      );
+
+      if (!mounted) return;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const CriarPerfilCriancaPage(),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erro ao criar conta: $e'),
+        ),
+      );
+    }
   }
 
   void _irParaLogin() {
@@ -237,7 +214,6 @@ class _CriarContaPageState extends State<CriarContaPage> {
                         ),
                       ),
                       const SizedBox(height: 24),
-
                       CustomTextField(
                         controller: _nome,
                         hint: 'Nome',
@@ -250,7 +226,6 @@ class _CriarContaPageState extends State<CriarContaPage> {
                         ],
                       ),
                       const SizedBox(height: 16),
-
                       CustomTextField(
                         controller: _email,
                         hint: 'Email',
@@ -259,7 +234,6 @@ class _CriarContaPageState extends State<CriarContaPage> {
                         keyboardType: TextInputType.emailAddress,
                       ),
                       const SizedBox(height: 16),
-
                       CustomTextField(
                         controller: _data,
                         hint: 'Data nascimento',
@@ -269,7 +243,6 @@ class _CriarContaPageState extends State<CriarContaPage> {
                         validator: _validarData,
                       ),
                       const SizedBox(height: 16),
-
                       CustomTextField(
                         controller: _senha,
                         hint: 'Senha',
@@ -277,9 +250,8 @@ class _CriarContaPageState extends State<CriarContaPage> {
                         obscureText: !senhaVisivel,
                         validator: _validarSenha,
                         suffixIcon: IconButton(
-                          onPressed: () {
-                            setState(() => senhaVisivel = !senhaVisivel);
-                          },
+                          onPressed: () =>
+                              setState(() => senhaVisivel = !senhaVisivel),
                           icon: Icon(
                             senhaVisivel
                                 ? Icons.visibility
@@ -288,7 +260,6 @@ class _CriarContaPageState extends State<CriarContaPage> {
                         ),
                       ),
                       const SizedBox(height: 16),
-
                       CustomTextField(
                         controller: _confirmar,
                         hint: 'Confirmar senha',
@@ -296,11 +267,8 @@ class _CriarContaPageState extends State<CriarContaPage> {
                         obscureText: !confirmarVisivel,
                         validator: _validarConfirmarSenha,
                         suffixIcon: IconButton(
-                          onPressed: () {
-                            setState(() {
-                              confirmarVisivel = !confirmarVisivel;
-                            });
-                          },
+                          onPressed: () => setState(
+                              () => confirmarVisivel = !confirmarVisivel),
                           icon: Icon(
                             confirmarVisivel
                                 ? Icons.visibility
@@ -309,13 +277,11 @@ class _CriarContaPageState extends State<CriarContaPage> {
                         ),
                       ),
                       const SizedBox(height: 28),
-
                       PrimaryButton(
                         text: 'Criar conta',
                         onTap: _criarConta,
                       ),
                       const SizedBox(height: 14),
-
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
